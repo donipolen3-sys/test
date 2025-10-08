@@ -5,23 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MiauAPI Rectangle System</title>
   <style>
-    * { 
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box; 
-    }
-    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 100%; 
-      height: 100%; 
-      overflow: hidden;
+      width: 100%; height: 100%; overflow: hidden;
       background: transparent;
       font-family: 'Inter', sans-serif;
     }
-    
-    body { 
-      width: 1920px; 
-      height: 1080px; 
+    body {
+      width: 1920px;
+      height: 1080px;
       position: relative;
     }
 
@@ -29,160 +21,68 @@
       position: absolute;
       border-radius: 8px;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
     @keyframes fadeIn {
-      from { 
-        opacity: 0; 
-        transform: scale(0.95); 
-      }
-      to { 
-        opacity: 1; 
-        transform: scale(1); 
-      }
+      from { opacity: 0; transform: scale(0.95); }
+      to   { opacity: 1; transform: scale(1); }
     }
-    
     @keyframes fadeOut {
-      from { 
-        opacity: 1; 
-        transform: scale(1); 
-      }
-      to { 
-        opacity: 0; 
-        transform: scale(0.95); 
-      }
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0; transform: scale(0.95); }
     }
-    
-    .rectangle-enter { 
-      animation: fadeIn 0.3s ease-out forwards; 
-    }
-    
-    .rectangle-exit { 
-      animation: fadeOut 0.3s ease-in forwards; 
-    }
+
+    .rectangle-enter { animation: fadeIn 0.25s ease-out forwards; }
+    .rectangle-exit  { animation: fadeOut 0.25s ease-in forwards; }
   </style>
 </head>
 <body>
   <script>
-    console.log('[MiauAPI] Rectangle System iniciando...');
+    console.log('[MiauAPI] Rectangle System iniciado.');
 
     const rectangles = {};
     let nextId = 1;
 
     function createRectangle(x, y, w, h, r, g, b, a) {
       const id = nextId++;
-      
-      const posX = x ?? 530;
-      const posY = y ?? 210;
-      const width = w ?? 860;
-      const height = h ?? 660;
-      const red = r ?? 41;
-      const green = g ?? 128;
-      const blue = b ?? 185;
-      const alpha = a ?? 200;
-
       const rect = document.createElement('div');
       rect.className = 'rectangle rectangle-enter';
       rect.id = `rect_${id}`;
-      rect.style.left = `${posX}px`;
-      rect.style.top = `${posY}px`;
-      rect.style.width = `${width}px`;
-      rect.style.height = `${height}px`;
-      rect.style.backgroundColor = `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
+      rect.style.left = `${x}px`;
+      rect.style.top = `${y}px`;
+      rect.style.width = `${w}px`;
+      rect.style.height = `${h}px`;
+      rect.style.backgroundColor = `rgba(${r},${g},${b},${a / 255})`;
 
       document.body.appendChild(rect);
       rectangles[id] = rect;
 
-      console.log(`[MiauAPI] Retângulo #${id} criado - Pos(${posX},${posY}) Tam(${width}x${height}) Cor(${red},${green},${blue},${alpha})`);
-      
+      console.log(`[MiauAPI] Retângulo #${id} criado.`);
       return id;
-    }
-
-    function updateRectangle(id, x, y, w, h, r, g, b, a) {
-      const rect = rectangles[id];
-      if (!rect) {
-        console.error(`[MiauAPI] Retângulo #${id} não encontrado!`);
-        return;
-      }
-
-      if (x !== undefined && x !== null) rect.style.left = `${x}px`;
-      if (y !== undefined && y !== null) rect.style.top = `${y}px`;
-      if (w !== undefined && w !== null) rect.style.width = `${w}px`;
-      if (h !== undefined && h !== null) rect.style.height = `${h}px`;
-
-      if (r !== undefined || g !== undefined || b !== undefined || a !== undefined) {
-        const currentColor = rect.style.backgroundColor;
-        const match = currentColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-        
-        const currentR = match ? parseInt(match[1]) : 41;
-        const currentG = match ? parseInt(match[2]) : 128;
-        const currentB = match ? parseInt(match[3]) : 185;
-        const currentA = match && match[4] ? parseFloat(match[4]) * 255 : 200;
-
-        const newR = r !== undefined && r !== null ? r : currentR;
-        const newG = g !== undefined && g !== null ? g : currentG;
-        const newB = b !== undefined && b !== null ? b : currentB;
-        const newA = a !== undefined && a !== null ? a : currentA;
-
-        rect.style.backgroundColor = `rgba(${newR}, ${newG}, ${newB}, ${newA / 255})`;
-      }
-
-      console.log(`[MiauAPI] Retângulo #${id} atualizado`);
     }
 
     function removeRectangle(id) {
       const rect = rectangles[id];
-      if (!rect) {
-        console.error(`[MiauAPI] Retângulo #${id} não encontrado!`);
-        return;
-      }
-
+      if (!rect) return;
       rect.classList.add('rectangle-exit');
-      setTimeout(() => {
-        if (rect.parentNode) rect.parentNode.removeChild(rect);
-        delete rectangles[id];
-        console.log(`[MiauAPI] Retângulo #${id} removido`);
-      }, 300);
+      setTimeout(() => rect.remove(), 250);
+      delete rectangles[id];
     }
 
-    function clearAll() {
-      Object.keys(rectangles).forEach(id => {
-        const rect = rectangles[id];
-        rect.classList.add('rectangle-exit');
-        setTimeout(() => {
-          if (rect.parentNode) rect.parentNode.removeChild(rect);
-        }, 300);
-      });
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (!d || !d.action) return;
 
-      setTimeout(() => {
-        Object.keys(rectangles).forEach(key => delete rectangles[key]);
-        console.log('[MiauAPI] Todos os retângulos removidos');
-      }, 300);
-    }
-
-    window.MiauAPI = {
-      Rectangle: createRectangle,
-      UpdateRectangle: updateRectangle,
-      RemoveRectangle: removeRectangle,
-      ClearAll: clearAll
-    };
-
-    window.addEventListener('message', (event) => {
-      const data = event.data;
-      
-      if (data?.action === 'createRectangle') {
-        createRectangle(data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
-      } else if (data?.action === 'updateRectangle') {
-        updateRectangle(data.id, data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
-      } else if (data?.action === 'removeRectangle') {
-        removeRectangle(data.id);
-      } else if (data?.action === 'clearAll') {
-        clearAll();
+      switch (d.action) {
+        case 'createRectangle':
+          createRectangle(d.x, d.y, d.w, d.h, d.r, d.g, d.b, d.a);
+          break;
+        case 'removeRectangle':
+          removeRectangle(d.id);
+          break;
       }
     });
-
-    console.log('[MiauAPI] Rectangle System pronto! ✓');
   </script>
 </body>
 </html>
