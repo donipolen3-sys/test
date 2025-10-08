@@ -85,38 +85,12 @@
     </div>
 
     <script>
-        // Sistema de Hooks para comunicação com Lua
-        window.MiauAPI = {
-            hooks: {},
-            rectangles: [],
-            
-            // Registrar hook
-            registerHook: function(name, callback) {
-                this.hooks[name] = callback;
-            },
-            
-            // Executar hook
-            executeHook: function(name, ...args) {
-                if (this.hooks[name]) {
-                    return this.hooks[name](...args);
-                }
-            },
-            
-            // Enviar dados para Lua
-            sendToLua: function(data) {
-                if (window.invokeNative) {
-                    window.invokeNative('SEND_NUI_MESSAGE', JSON.stringify(data));
-                }
-            }
-        };
-
         // Vue App
-        new Vue({
+        const app = new Vue({
             el: '#app',
             data: {
                 rectangles: [],
-                showDebug: false,
-                defaultSize: { w: 860, h: 660 }
+                showDebug: false
             },
             
             methods: {
@@ -125,8 +99,8 @@
                     const rect = {
                         x: x || 100,
                         y: y || 100,
-                        w: w || this.defaultSize.w,
-                        h: h || this.defaultSize.h,
+                        w: w || 860,
+                        h: h || 660,
                         r: r || 255,
                         g: g || 0,
                         b: b || 0,
@@ -134,11 +108,7 @@
                     };
                     
                     this.rectangles.push(rect);
-                    this.sendToLua({
-                        type: 'rectangle_added',
-                        data: rect
-                    });
-                    
+                    console.log('Retângulo adicionado:', rect);
                     return rect;
                 },
                 
@@ -146,10 +116,7 @@
                 removeRectangle: function(index) {
                     if (index >= 0 && index < this.rectangles.length) {
                         const removed = this.rectangles.splice(index, 1)[0];
-                        this.sendToLua({
-                            type: 'rectangle_removed',
-                            data: removed
-                        });
+                        console.log('Retângulo removido:', removed);
                         return removed;
                     }
                 },
@@ -167,11 +134,7 @@
                         if (b !== undefined) rect.b = b;
                         if (a !== undefined) rect.a = a;
                         
-                        this.sendToLua({
-                            type: 'rectangle_updated',
-                            data: rect
-                        });
-                        
+                        console.log('Retângulo atualizado:', rect);
                         return rect;
                     }
                 },
@@ -179,53 +142,18 @@
                 // Limpar todos os retângulos
                 clearRectangles: function() {
                     this.rectangles = [];
-                    this.sendToLua({
-                        type: 'rectangles_cleared'
-                    });
-                },
-                
-                // Enviar dados para Lua
-                sendToLua: function(data) {
-                    window.MiauAPI.sendToLua(data);
+                    console.log('Todos os retângulos foram limpos');
                 },
                 
                 // Toggle debug
                 toggleDebug: function() {
                     this.showDebug = !this.showDebug;
-                }
-            },
-            
-            mounted: function() {
-                // Registrar hooks globais
-                window.MiauAPI.registerHook('Rectangle', this.addRectangle);
-                window.MiauAPI.registerHook('RemoveRectangle', this.removeRectangle);
-                window.MiauAPI.registerHook('UpdateRectangle', this.updateRectangle);
-                window.MiauAPI.registerHook('ClearRectangles', this.clearRectangles);
-                window.MiauAPI.registerHook('ToggleDebug', this.toggleDebug);
+                    console.log('Debug mode:', this.showDebug);
+                },
                 
-                // Listener para mensagens do Lua
-                window.addEventListener('message', (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        this.handleLuaMessage(data);
-                    } catch (e) {
-                        console.error('Erro ao processar mensagem do Lua:', e);
-                    }
-                });
-                
-                // Listener para teclas de debug
-                document.addEventListener('keydown', (event) => {
-                    if (event.key === 'F1') {
-                        this.toggleDebug();
-                    }
-                });
-                
-                console.log('Miau API Rectangle System carregado!');
-                console.log('Use F1 para toggle debug');
-            },
-            
-            methods: {
+                // Processar mensagens do Lua
                 handleLuaMessage: function(data) {
+                    console.log('Mensagem recebida do Lua:', data);
                     switch (data.type) {
                         case 'add_rectangle':
                             this.addRectangle(data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
@@ -244,24 +172,61 @@
                             break;
                     }
                 }
+            },
+            
+            mounted: function() {
+                console.log('Miau API Rectangle System carregado!');
+                console.log('Use F1 para toggle debug');
+                
+                // Listener para mensagens do Lua
+                window.addEventListener('message', (event) => {
+                    console.log('Evento recebido:', event);
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('Dados parseados:', data);
+                        this.handleLuaMessage(data);
+                    } catch (e) {
+                        console.error('Erro ao processar mensagem do Lua:', e);
+                        console.log('Dados brutos:', event.data);
+                    }
+                });
+                
+                // Listener para teclas de debug
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'F1') {
+                        this.toggleDebug();
+                    }
+                });
+                
+                // Teste automático após 2 segundos
+                setTimeout(() => {
+                    console.log('Executando teste automático...');
+                    this.addRectangle(100, 100, 860, 660, 255, 0, 0, 0.8);
+                    this.addRectangle(200, 200, 400, 300, 0, 0, 255, 0.6);
+                    this.addRectangle(300, 300, 200, 150, 0, 255, 0, 0.4);
+                }, 2000);
             }
         });
 
-        // Expor funções globais para uso direto
+        // Expor funções globais
         window.Rectangle = function(x, y, w, h, r, g, b, a) {
-            return window.MiauAPI.executeHook('Rectangle', x, y, w, h, r, g, b, a);
+            return app.addRectangle(x, y, w, h, r, g, b, a);
         };
 
         window.RemoveRectangle = function(index) {
-            return window.MiauAPI.executeHook('RemoveRectangle', index);
+            return app.removeRectangle(index);
         };
 
         window.UpdateRectangle = function(index, x, y, w, h, r, g, b, a) {
-            return window.MiauAPI.executeHook('UpdateRectangle', index, x, y, w, h, r, g, b, a);
+            return app.updateRectangle(index, x, y, w, h, r, g, b, a);
         };
 
         window.ClearRectangles = function() {
-            return window.MiauAPI.executeHook('ClearRectangles');
+            return app.clearRectangles();
+        };
+
+        window.ToggleDebug = function() {
+            return app.toggleDebug();
         };
     </script>
 </body>
