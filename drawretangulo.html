@@ -1,177 +1,197 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiauAPI Rectangle System</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MiauAPI – Rectangle System</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: transparent;
+    }
+    body { width: 1920px; height: 1080px; }
 
-        body {
-            width: 1920px;
-            height: 1080px;
-            overflow: hidden;
-            background: transparent;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+    /* ==========================================
+       MÓDULO: RECTANGLE
+       ========================================== */
+    .rectangle {
+      position: absolute;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
 
-        #app {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        .rectangle {
-            position: absolute;
-            transition: all 0.3s ease;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .rectangle-inner {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-            opacity: 0.8;
-        }
-    </style>
+    /* Animações */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0; transform: scale(0.95); }
+    }
+    .rectangle-enter { animation: fadeIn 0.3s ease-out forwards; }
+    .rectangle-exit  { animation: fadeOut 0.3s ease-in forwards; }
+  </style>
 </head>
 <body>
-    <div id="app">
-        <div 
-            v-for="rect in rectangles" 
-            :key="rect.id"
-            class="rectangle"
-            :style="getRectangleStyle(rect)"
-        >
-            <div class="rectangle-inner">
-                {{ rect.showLabel ? `Rectangle ${rect.id}` : '' }}
-            </div>
-        </div>
-    </div>
+  <script>
+    console.log('[MiauAPI] Rectangle System iniciando...');
 
-    <script>
-        // Configurações padrão do sistema
-        const CONFIG = {
-            defaultWidth: 860,
-            defaultHeight: 660,
-            defaultColor: { r: 41, g: 128, b: 185 },
-            defaultAlpha: 200,
-            animationDuration: 300,
-            showLabels: false
-        };
+    // Armazena todos os retângulos criados
+    const rectangles = {};
+    let nextId = 1;
 
-        new Vue({
-            el: '#app',
-            data: {
-                rectangles: [],
-                nextId: 1
-            },
-            mounted() {
-                // Registra o hook global para comunicação com Lua
-                window.MiauAPI = {
-                    Rectangle: this.createRectangle,
-                    UpdateRectangle: this.updateRectangle,
-                    RemoveRectangle: this.removeRectangle,
-                    ClearAll: this.clearAll,
-                    SetConfig: this.setConfig
-                };
+    /**
+     * Cria um retângulo na tela
+     * @param {number} x - Posição X (0-1920)
+     * @param {number} y - Posição Y (0-1080)
+     * @param {number} w - Largura em pixels
+     * @param {number} h - Altura em pixels
+     * @param {number} r - Vermelho (0-255)
+     * @param {number} g - Verde (0-255)
+     * @param {number} b - Azul (0-255)
+     * @param {number} a - Opacidade (0-255)
+     * @returns {number} ID do retângulo criado
+     */
+    function createRectangle(x, y, w, h, r, g, b, a) {
+      const id = nextId++;
+      
+      // Valores padrão
+      const posX = x ?? 530;
+      const posY = y ?? 210;
+      const width = w ?? 860;
+      const height = h ?? 660;
+      const red = r ?? 41;
+      const green = g ?? 128;
+      const blue = b ?? 185;
+      const alpha = a ?? 200;
 
-                // Listener para mensagens do NUI (FiveM)
-                window.addEventListener('message', (event) => {
-                    const data = event.data;
-                    
-                    if (data.action === 'createRectangle') {
-                        this.createRectangle(
-                            data.x, data.y, data.w, data.h,
-                            data.r, data.g, data.b, data.a
-                        );
-                    } else if (data.action === 'updateRectangle') {
-                        this.updateRectangle(data.id, data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
-                    } else if (data.action === 'removeRectangle') {
-                        this.removeRectangle(data.id);
-                    } else if (data.action === 'clearAll') {
-                        this.clearAll();
-                    }
-                });
+      // Cria o elemento
+      const rect = document.createElement('div');
+      rect.className = 'rectangle rectangle-enter';
+      rect.id = `rect_${id}`;
+      rect.style.left = `${posX}px`;
+      rect.style.top = `${posY}px`;
+      rect.style.width = `${width}px`;
+      rect.style.height = `${height}px`;
+      rect.style.backgroundColor = `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
 
-                console.log('MiauAPI Rectangle System Initialized');
-            },
-            methods: {
-                createRectangle(x, y, w, h, r, g, b, a) {
-                    const rect = {
-                        id: this.nextId++,
-                        x: x || 0,
-                        y: y || 0,
-                        w: w || CONFIG.defaultWidth,
-                        h: h || CONFIG.defaultHeight,
-                        r: r !== undefined ? r : CONFIG.defaultColor.r,
-                        g: g !== undefined ? g : CONFIG.defaultColor.g,
-                        b: b !== undefined ? b : CONFIG.defaultColor.b,
-                        a: a !== undefined ? a : CONFIG.defaultAlpha,
-                        showLabel: CONFIG.showLabels
-                    };
+      document.body.appendChild(rect);
+      rectangles[id] = rect;
 
-                    this.rectangles.push(rect);
-                    return rect.id;
-                },
+      console.log(`[MiauAPI] Retângulo #${id} criado - Pos(${posX},${posY}) Tam(${width}x${height}) Cor(${red},${green},${blue},${alpha})`);
+      
+      return id;
+    }
 
-                updateRectangle(id, x, y, w, h, r, g, b, a) {
-                    const rect = this.rectangles.find(r => r.id === id);
-                    if (rect) {
-                        if (x !== undefined) rect.x = x;
-                        if (y !== undefined) rect.y = y;
-                        if (w !== undefined) rect.w = w;
-                        if (h !== undefined) rect.h = h;
-                        if (r !== undefined) rect.r = r;
-                        if (g !== undefined) rect.g = g;
-                        if (b !== undefined) rect.b = b;
-                        if (a !== undefined) rect.a = a;
-                    }
-                },
+    /**
+     * Atualiza um retângulo existente
+     * @param {number} id - ID do retângulo
+     * @param {number} x - Nova posição X (opcional)
+     * @param {number} y - Nova posição Y (opcional)
+     * @param {number} w - Nova largura (opcional)
+     * @param {number} h - Nova altura (opcional)
+     * @param {number} r - Novo vermelho (opcional)
+     * @param {number} g - Novo verde (opcional)
+     * @param {number} b - Novo azul (opcional)
+     * @param {number} a - Nova opacidade (opcional)
+     */
+    function updateRectangle(id, x, y, w, h, r, g, b, a) {
+      const rect = rectangles[id];
+      if (!rect) {
+        console.error(`[MiauAPI] Retângulo #${id} não encontrado!`);
+        return;
+      }
 
-                removeRectangle(id) {
-                    const index = this.rectangles.findIndex(r => r.id === id);
-                    if (index !== -1) {
-                        this.rectangles.splice(index, 1);
-                    }
-                },
+      // Atualiza apenas os valores fornecidos
+      if (x !== undefined && x !== null) rect.style.left = `${x}px`;
+      if (y !== undefined && y !== null) rect.style.top = `${y}px`;
+      if (w !== undefined && w !== null) rect.style.width = `${w}px`;
+      if (h !== undefined && h !== null) rect.style.height = `${h}px`;
 
-                clearAll() {
-                    this.rectangles = [];
-                    this.nextId = 1;
-                },
+      // Atualiza cor se pelo menos um valor RGB/A foi fornecido
+      if (r !== undefined || g !== undefined || b !== undefined || a !== undefined) {
+        const currentColor = rect.style.backgroundColor;
+        const match = currentColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        
+        const currentR = match ? parseInt(match[1]) : 41;
+        const currentG = match ? parseInt(match[2]) : 128;
+        const currentB = match ? parseInt(match[3]) : 185;
+        const currentA = match && match[4] ? parseFloat(match[4]) * 255 : 200;
 
-                setConfig(options) {
-                    if (options.defaultWidth) CONFIG.defaultWidth = options.defaultWidth;
-                    if (options.defaultHeight) CONFIG.defaultHeight = options.defaultHeight;
-                    if (options.defaultColor) CONFIG.defaultColor = options.defaultColor;
-                    if (options.defaultAlpha !== undefined) CONFIG.defaultAlpha = options.defaultAlpha;
-                    if (options.showLabels !== undefined) CONFIG.showLabels = options.showLabels;
-                },
+        const newR = r !== undefined && r !== null ? r : currentR;
+        const newG = g !== undefined && g !== null ? g : currentG;
+        const newB = b !== undefined && b !== null ? b : currentB;
+        const newA = a !== undefined && a !== null ? a : currentA;
 
-                getRectangleStyle(rect) {
-                    return {
-                        left: rect.x + 'px',
-                        top: rect.y + 'px',
-                        width: rect.w + 'px',
-                        height: rect.h + 'px',
-                        backgroundColor: `rgba(${rect.r}, ${rect.g}, ${rect.b}, ${rect.a / 255})`
-                    };
-                }
-            }
-        });
-    </script>
+        rect.style.backgroundColor = `rgba(${newR}, ${newG}, ${newB}, ${newA / 255})`;
+      }
+
+      console.log(`[MiauAPI] Retângulo #${id} atualizado`);
+    }
+
+    /**
+     * Remove um retângulo da tela
+     * @param {number} id - ID do retângulo
+     */
+    function removeRectangle(id) {
+      const rect = rectangles[id];
+      if (!rect) {
+        console.error(`[MiauAPI] Retângulo #${id} não encontrado!`);
+        return;
+      }
+
+      rect.classList.add('rectangle-exit');
+      setTimeout(() => {
+        if (rect.parentNode) rect.parentNode.removeChild(rect);
+        delete rectangles[id];
+        console.log(`[MiauAPI] Retângulo #${id} removido`);
+      }, 300);
+    }
+
+    /**
+     * Remove todos os retângulos da tela
+     */
+    function clearAll() {
+      Object.keys(rectangles).forEach(id => {
+        const rect = rectangles[id];
+        rect.classList.add('rectangle-exit');
+        setTimeout(() => {
+          if (rect.parentNode) rect.parentNode.removeChild(rect);
+        }, 300);
+      });
+
+      setTimeout(() => {
+        Object.keys(rectangles).forEach(key => delete rectangles[key]);
+        console.log('[MiauAPI] Todos os retângulos removidos');
+      }, 300);
+    }
+
+    // API Global
+    window.MiauAPI = {
+      Rectangle: createRectangle,
+      UpdateRectangle: updateRectangle,
+      RemoveRectangle: removeRectangle,
+      ClearAll: clearAll
+    };
+
+    // Listener para mensagens do NUI
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      
+      if (data?.action === 'createRectangle') {
+        createRectangle(data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
+      } else if (data?.action === 'updateRectangle') {
+        updateRectangle(data.id, data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
+      } else if (data?.action === 'removeRectangle') {
+        removeRectangle(data.id);
+      } else if (data?.action === 'clearAll') {
+        clearAll();
+      }
+    });
+
+    console.log('[MiauAPI] Rectangle System pronto! ✓');
+  </script>
 </body>
 </html>
