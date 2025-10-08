@@ -46,12 +46,36 @@
             background-clip: text;
         }
 
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.8;
+        }
+
         .status {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             padding: 20px;
             margin: 20px 0;
             border-left: 4px solid #4ecdc4;
+        }
+
+        .status h3 {
+            margin-bottom: 10px;
+            color: #4ecdc4;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #4ecdc4;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .data-display {
@@ -71,6 +95,15 @@
             word-wrap: break-word;
         }
 
+        .error {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #ff6b6b;
+        }
+
         .success {
             background: rgba(78, 205, 196, 0.2);
             border: 1px solid #4ecdc4;
@@ -80,13 +113,52 @@
             color: #4ecdc4;
         }
 
-        .error {
-            background: rgba(255, 107, 107, 0.2);
-            border: 1px solid #ff6b6b;
+        .button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             padding: 15px;
-            margin: 20px 0;
-            color: #ff6b6b;
+            text-align: center;
+        }
+
+        .info-card h4 {
+            color: #4ecdc4;
+            margin-bottom: 5px;
+        }
+
+        .info-card p {
+            font-size: 1.2em;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -102,6 +174,21 @@
             <p id="statusText">Aguardando conexão com o servidor...</p>
         </div>
 
+        <div class="info-grid" id="infoGrid" style="display: none;">
+            <div class="info-card">
+                <h4>IP do Servidor</h4>
+                <p id="serverIP">-</p>
+            </div>
+            <div class="info-card">
+                <h4>Status</h4>
+                <p id="serverStatus">-</p>
+            </div>
+            <div class="info-card">
+                <h4>Última Atualização</h4>
+                <p id="lastUpdate">-</p>
+            </div>
+        </div>
+
         <div class="data-display" id="dataDisplay" style="display: none;">
             <h3>Dados do Servidor</h3>
             <pre id="serverData">Aguardando dados...</pre>
@@ -109,11 +196,15 @@
 
         <div id="errorDisplay"></div>
         <div id="successDisplay"></div>
+
+        <div style="margin-top: 20px;">
+            <button class="button" id="refreshBtn" onclick="refreshData()">🔄 Atualizar Dados</button>
+            <button class="button" id="testBtn" onclick="testConnection()">🧪 Testar Conexão</button>
+        </div>
     </div>
 
     <script>
         let currentServerIP = null;
-        let serverData = null;
         let isConnected = false;
 
         // Função para atualizar o status
@@ -147,9 +238,16 @@
         function updateDataDisplay(data) {
             const dataDisplay = document.getElementById('dataDisplay');
             const serverData = document.getElementById('serverData');
+            const infoGrid = document.getElementById('infoGrid');
             
             serverData.textContent = JSON.stringify(data, null, 2);
             dataDisplay.style.display = 'block';
+            infoGrid.style.display = 'grid';
+            
+            // Atualizar informações básicas
+            document.getElementById('serverIP').textContent = currentServerIP || 'N/A';
+            document.getElementById('serverStatus').textContent = 'Conectado';
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleString('pt-BR');
         }
 
         // Função para fazer requisição GET para o servidor
@@ -171,12 +269,14 @@
 
                 const data = await response.json();
                 currentServerIP = serverIP;
-                serverData = data;
                 isConnected = true;
                 
                 updateDataDisplay(data);
                 updateStatus('Conectado com sucesso!', 'success');
                 showSuccess('Dados carregados com sucesso!');
+                
+                // Salvar dados no localStorage
+                saveDataToLocalStorage(data);
                 
                 return data;
             } catch (error) {
@@ -188,33 +288,39 @@
             }
         }
 
-        // Função para enviar dados para o Lua
-        function sendDataToLua() {
-            if (serverData && currentServerIP) {
-                try {
-                    fetch(`https://${GetParentResourceName()}/sendData`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            success: true,
-                            data: serverData,
-                            serverIP: currentServerIP,
-                            timestamp: new Date().toISOString()
-                        })
-                    }).catch(error => {
-                        console.error('Erro ao enviar dados para Lua:', error);
-                    });
-                } catch (error) {
-                    console.error('Erro ao enviar dados para Lua:', error);
-                }
+        // Função para salvar dados no localStorage
+        function saveDataToLocalStorage(data) {
+            try {
+                // Salvar dados no localStorage
+                localStorage.setItem('miau_api_data', JSON.stringify(data));
+                localStorage.setItem('miau_api_status', 'success');
+                localStorage.setItem('miau_api_timestamp', new Date().toISOString());
+                
+                console.log('Dados salvos no localStorage:', data);
+                updateStatus('Dados salvos com sucesso!', 'success');
+            } catch (error) {
+                console.error('Erro ao salvar dados no localStorage:', error);
+                localStorage.setItem('miau_api_status', 'error');
+                updateStatus('Erro ao salvar dados', 'error');
             }
         }
 
-        // Função para obter o nome do recurso
-        function GetParentResourceName() {
-            return window.location.hostname;
+        // Função para atualizar dados
+        function refreshData() {
+            if (currentServerIP) {
+                fetchServerData(currentServerIP);
+            } else {
+                showError('Nenhum IP de servidor configurado');
+            }
+        }
+
+        // Função para testar conexão
+        function testConnection() {
+            if (currentServerIP) {
+                fetchServerData(currentServerIP);
+            } else {
+                showError('Nenhum IP de servidor configurado');
+            }
         }
 
         // Escutar mensagens do Lua
@@ -231,12 +337,7 @@
                     const serverIP = url.hostname;
                     currentServerIP = serverIP;
                     
-                    fetchServerData(serverIP).then(() => {
-                        // Enviar dados para o Lua após receber
-                        setTimeout(() => {
-                            sendDataToLua();
-                        }, 1000);
-                    });
+                    fetchServerData(serverIP);
                 } else {
                     showError('URL não fornecida pelo Lua');
                 }
@@ -244,13 +345,21 @@
                 currentServerIP = data.ip;
                 updateStatus(`IP do servidor definido: ${data.ip}`, 'success');
                 showSuccess(`IP configurado: ${data.ip}`);
-            } else if (data.action === 'getData') {
-                // Lua está pedindo os dados
-                if (serverData) {
-                    sendDataToLua();
+            } else if (data.action === 'executeJS') {
+                // Executar JavaScript enviado pelo Lua
+                try {
+                    const result = eval(data.code);
+                    console.log('JavaScript executado:', result);
+                } catch (error) {
+                    console.error('Erro ao executar JavaScript:', error);
                 }
             }
         });
+
+        // Função para obter o nome do recurso (necessário para callbacks)
+        function GetParentResourceName() {
+            return window.location.hostname;
+        }
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
@@ -258,13 +367,13 @@
             console.log('Miau API HTML carregado e pronto!');
         });
 
-        // Expor funções globalmente
+        // Expor funções globalmente para debug
         window.MiauAPI = {
             fetchServerData,
-            sendDataToLua,
+            refreshData,
+            testConnection,
             getCurrentIP: () => currentServerIP,
-            isConnected: () => isConnected,
-            getData: () => serverData
+            isConnected: () => isConnected
         };
     </script>
 </body>
