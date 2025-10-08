@@ -5,33 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MiauAPI – Rectangle System</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%; overflow: hidden;
-      background: transparent;
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
     }
-    body { width: 1920px; height: 1080px; }
+    
+    html, body {
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden;
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+    }
+    
+    body { 
+      width: 1920px; 
+      height: 1080px; 
+      position: relative;
+    }
 
     /* ==========================================
-       MÓDULO: RECTANGLE
+       MÓDULO: RECTANGLE - Sistema de Retângulos
        ========================================== */
     .rectangle {
       position: absolute;
       border-radius: 8px;
       transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    /* Animações */
+    /* Animações suaves */
     @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.95); }
-      to   { opacity: 1; transform: scale(1); }
+      from { 
+        opacity: 0; 
+        transform: scale(0.95); 
+      }
+      to { 
+        opacity: 1; 
+        transform: scale(1); 
+      }
     }
+    
     @keyframes fadeOut {
-      from { opacity: 1; transform: scale(1); }
-      to   { opacity: 0; transform: scale(0.95); }
+      from { 
+        opacity: 1; 
+        transform: scale(1); 
+      }
+      to { 
+        opacity: 0; 
+        transform: scale(0.95); 
+      }
     }
-    .rectangle-enter { animation: fadeIn 0.3s ease-out forwards; }
-    .rectangle-exit  { animation: fadeOut 0.3s ease-in forwards; }
+    
+    .rectangle-enter { 
+      animation: fadeIn 0.3s ease-out forwards; 
+    }
+    
+    .rectangle-exit { 
+      animation: fadeOut 0.3s ease-in forwards; 
+    }
+
+    /* Efeito hover para retângulos (opcional) */
+    .rectangle:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -57,7 +96,7 @@
     function createRectangle(x, y, w, h, r, g, b, a) {
       const id = nextId++;
       
-      // Valores padrão
+      // Valores padrão (conforme especificado)
       const posX = x ?? 530;
       const posY = y ?? 210;
       const width = w ?? 860;
@@ -67,7 +106,7 @@
       const blue = b ?? 185;
       const alpha = a ?? 200;
 
-      // Cria o elemento
+      // Cria o elemento DOM
       const rect = document.createElement('div');
       rect.className = 'rectangle rectangle-enter';
       rect.id = `rect_${id}`;
@@ -77,6 +116,7 @@
       rect.style.height = `${height}px`;
       rect.style.backgroundColor = `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
 
+      // Adiciona ao DOM
       document.body.appendChild(rect);
       rectangles[id] = rect;
 
@@ -104,7 +144,7 @@
         return;
       }
 
-      // Atualiza apenas os valores fornecidos
+      // Atualiza posição e tamanho
       if (x !== undefined && x !== null) rect.style.left = `${x}px`;
       if (y !== undefined && y !== null) rect.style.top = `${y}px`;
       if (w !== undefined && w !== null) rect.style.width = `${w}px`;
@@ -168,7 +208,7 @@
       }, 300);
     }
 
-    // API Global
+    // API Global - Interface principal
     window.MiauAPI = {
       Rectangle: createRectangle,
       UpdateRectangle: updateRectangle,
@@ -176,7 +216,7 @@
       ClearAll: clearAll
     };
 
-    // Listener para mensagens do NUI
+    // Listener para mensagens do NUI/DUI
     window.addEventListener('message', (event) => {
       const data = event.data;
       
