@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Miau API - Rectangle</title>
+    <title>MiauAPI Rectangle System</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
     <style>
         * {
@@ -13,118 +13,123 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: transparent;
+            width: 1920px;
+            height: 1080px;
             overflow: hidden;
+            background: transparent;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         #app {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             position: relative;
         }
 
-        .rectangle-container {
+        .rectangle {
             position: absolute;
             transition: all 0.3s ease;
-        }
-
-        .rectangle {
-            width: 100%;
-            height: 100%;
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
-        .debug-info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
+        .rectangle-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            display: none;
-        }
-
-        .debug-info.show {
-            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
     <div id="app">
         <div 
-            v-for="(rect, index) in rectangles" 
-            :key="index"
-            class="rectangle-container"
-            :style="{
-                left: rect.x + 'px',
-                top: rect.y + 'px',
-                width: rect.w + 'px',
-                height: rect.h + 'px'
-            }"
+            v-for="rect in rectangles" 
+            :key="rect.id"
+            class="rectangle"
+            :style="getRectangleStyle(rect)"
         >
-            <div 
-                class="rectangle"
-                :style="{
-                    backgroundColor: `rgba(${rect.r}, ${rect.g}, ${rect.b}, ${rect.a})`
-                }"
-            ></div>
-        </div>
-
-        <div class="debug-info" :class="{ show: showDebug }">
-            <div>Rectangles: {{ rectangles.length }}</div>
-            <div v-for="(rect, index) in rectangles" :key="index">
-                R{{ index + 1 }}: {{ rect.x }}, {{ rect.y }}, {{ rect.w }}x{{ rect.h }} | RGBA({{ rect.r }}, {{ rect.g }}, {{ rect.b }}, {{ rect.a }})
+            <div class="rectangle-inner">
+                {{ rect.showLabel ? `Rectangle ${rect.id}` : '' }}
             </div>
         </div>
     </div>
 
     <script>
-        // Vue App
-        const app = new Vue({
+        // Configurações padrão do sistema
+        const CONFIG = {
+            defaultWidth: 860,
+            defaultHeight: 660,
+            defaultColor: { r: 41, g: 128, b: 185 },
+            defaultAlpha: 200,
+            animationDuration: 300,
+            showLabels: false
+        };
+
+        new Vue({
             el: '#app',
             data: {
                 rectangles: [],
-                showDebug: false
+                nextId: 1
             },
-            
-            methods: {
-                // Adicionar retângulo
-                addRectangle: function(x, y, w, h, r, g, b, a) {
-                    const rect = {
-                        x: x || 100,
-                        y: y || 100,
-                        w: w || 860,
-                        h: h || 660,
-                        r: r || 255,
-                        g: g || 0,
-                        b: b || 0,
-                        a: a || 0.8
-                    };
+            mounted() {
+                // Registra o hook global para comunicação com Lua
+                window.MiauAPI = {
+                    Rectangle: this.createRectangle,
+                    UpdateRectangle: this.updateRectangle,
+                    RemoveRectangle: this.removeRectangle,
+                    ClearAll: this.clearAll,
+                    SetConfig: this.setConfig
+                };
+
+                // Listener para mensagens do NUI (FiveM)
+                window.addEventListener('message', (event) => {
+                    const data = event.data;
                     
-                    this.rectangles.push(rect);
-                    console.log('Retângulo adicionado:', rect);
-                    return rect;
-                },
-                
-                // Remover retângulo
-                removeRectangle: function(index) {
-                    if (index >= 0 && index < this.rectangles.length) {
-                        const removed = this.rectangles.splice(index, 1)[0];
-                        console.log('Retângulo removido:', removed);
-                        return removed;
+                    if (data.action === 'createRectangle') {
+                        this.createRectangle(
+                            data.x, data.y, data.w, data.h,
+                            data.r, data.g, data.b, data.a
+                        );
+                    } else if (data.action === 'updateRectangle') {
+                        this.updateRectangle(data.id, data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
+                    } else if (data.action === 'removeRectangle') {
+                        this.removeRectangle(data.id);
+                    } else if (data.action === 'clearAll') {
+                        this.clearAll();
                     }
+                });
+
+                console.log('MiauAPI Rectangle System Initialized');
+            },
+            methods: {
+                createRectangle(x, y, w, h, r, g, b, a) {
+                    const rect = {
+                        id: this.nextId++,
+                        x: x || 0,
+                        y: y || 0,
+                        w: w || CONFIG.defaultWidth,
+                        h: h || CONFIG.defaultHeight,
+                        r: r !== undefined ? r : CONFIG.defaultColor.r,
+                        g: g !== undefined ? g : CONFIG.defaultColor.g,
+                        b: b !== undefined ? b : CONFIG.defaultColor.b,
+                        a: a !== undefined ? a : CONFIG.defaultAlpha,
+                        showLabel: CONFIG.showLabels
+                    };
+
+                    this.rectangles.push(rect);
+                    return rect.id;
                 },
-                
-                // Atualizar retângulo
-                updateRectangle: function(index, x, y, w, h, r, g, b, a) {
-                    if (index >= 0 && index < this.rectangles.length) {
-                        const rect = this.rectangles[index];
+
+                updateRectangle(id, x, y, w, h, r, g, b, a) {
+                    const rect = this.rectangles.find(r => r.id === id);
+                    if (rect) {
                         if (x !== undefined) rect.x = x;
                         if (y !== undefined) rect.y = y;
                         if (w !== undefined) rect.w = w;
@@ -133,101 +138,40 @@
                         if (g !== undefined) rect.g = g;
                         if (b !== undefined) rect.b = b;
                         if (a !== undefined) rect.a = a;
-                        
-                        console.log('Retângulo atualizado:', rect);
-                        return rect;
                     }
                 },
-                
-                // Limpar todos os retângulos
-                clearRectangles: function() {
+
+                removeRectangle(id) {
+                    const index = this.rectangles.findIndex(r => r.id === id);
+                    if (index !== -1) {
+                        this.rectangles.splice(index, 1);
+                    }
+                },
+
+                clearAll() {
                     this.rectangles = [];
-                    console.log('Todos os retângulos foram limpos');
+                    this.nextId = 1;
                 },
-                
-                // Toggle debug
-                toggleDebug: function() {
-                    this.showDebug = !this.showDebug;
-                    console.log('Debug mode:', this.showDebug);
+
+                setConfig(options) {
+                    if (options.defaultWidth) CONFIG.defaultWidth = options.defaultWidth;
+                    if (options.defaultHeight) CONFIG.defaultHeight = options.defaultHeight;
+                    if (options.defaultColor) CONFIG.defaultColor = options.defaultColor;
+                    if (options.defaultAlpha !== undefined) CONFIG.defaultAlpha = options.defaultAlpha;
+                    if (options.showLabels !== undefined) CONFIG.showLabels = options.showLabels;
                 },
-                
-                // Processar mensagens do Lua
-                handleLuaMessage: function(data) {
-                    console.log('Mensagem recebida do Lua:', data);
-                    switch (data.type) {
-                        case 'add_rectangle':
-                            this.addRectangle(data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
-                            break;
-                        case 'remove_rectangle':
-                            this.removeRectangle(data.index);
-                            break;
-                        case 'update_rectangle':
-                            this.updateRectangle(data.index, data.x, data.y, data.w, data.h, data.r, data.g, data.b, data.a);
-                            break;
-                        case 'clear_rectangles':
-                            this.clearRectangles();
-                            break;
-                        case 'toggle_debug':
-                            this.toggleDebug();
-                            break;
-                    }
+
+                getRectangleStyle(rect) {
+                    return {
+                        left: rect.x + 'px',
+                        top: rect.y + 'px',
+                        width: rect.w + 'px',
+                        height: rect.h + 'px',
+                        backgroundColor: `rgba(${rect.r}, ${rect.g}, ${rect.b}, ${rect.a / 255})`
+                    };
                 }
-            },
-            
-            mounted: function() {
-                console.log('Miau API Rectangle System carregado!');
-                console.log('Use F1 para toggle debug');
-                
-                // Listener para mensagens do Lua
-                window.addEventListener('message', (event) => {
-                    console.log('Evento recebido:', event);
-                    try {
-                        const data = JSON.parse(event.data);
-                        console.log('Dados parseados:', data);
-                        this.handleLuaMessage(data);
-                    } catch (e) {
-                        console.error('Erro ao processar mensagem do Lua:', e);
-                        console.log('Dados brutos:', event.data);
-                    }
-                });
-                
-                // Listener para teclas de debug
-                document.addEventListener('keydown', (event) => {
-                    if (event.key === 'F1') {
-                        this.toggleDebug();
-                    }
-                });
-                
-                // Teste automático após 2 segundos
-                setTimeout(() => {
-                    console.log('Executando teste automático...');
-                    this.addRectangle(100, 100, 860, 660, 255, 0, 0, 0.8);
-                    this.addRectangle(200, 200, 400, 300, 0, 0, 255, 0.6);
-                    this.addRectangle(300, 300, 200, 150, 0, 255, 0, 0.4);
-                }, 2000);
             }
         });
-
-        // Expor funções globais
-        window.Rectangle = function(x, y, w, h, r, g, b, a) {
-            return app.addRectangle(x, y, w, h, r, g, b, a);
-        };
-
-        window.RemoveRectangle = function(index) {
-            return app.removeRectangle(index);
-        };
-
-        window.UpdateRectangle = function(index, x, y, w, h, r, g, b, a) {
-            return app.updateRectangle(index, x, y, w, h, r, g, b, a);
-        };
-
-        window.ClearRectangles = function() {
-            return app.clearRectangles();
-        };
-
-        window.ToggleDebug = function() {
-            return app.toggleDebug();
-        };
     </script>
 </body>
 </html>
