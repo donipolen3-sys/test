@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MiauAPI – Audio System</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: transparent;
+    }
+    body { width: 1920px; height: 1080px; }
+
+    /* ==========================================
+       MÓDULO: AUDIO
+       ========================================== */
+    .audio-container {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .audio-element {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Controles visuais (opcional) */
+    .audio-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border-radius: 8px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      z-index: 1000;
+    }
+
+    .audio-info {
+      margin-bottom: 5px;
+    }
+
+    .audio-control-buttons {
+      display: flex;
+      gap: 5px;
+    }
+
+    .control-btn {
+      background: #333;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    .control-btn:hover {
+      background: #555;
+    }
+
+    .control-btn:active {
+      background: #666;
+    }
+
+    /* Animações */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0; transform: scale(0.95); }
+    }
+    .audio-enter { animation: fadeIn 0.3s ease-out forwards; }
+    .audio-exit  { animation: fadeOut 0.3s ease-in forwards; }
+  </style>
+</head>
+<body>
+  <script>
+    console.log('[MiauAPI] Audio System iniciando...');
+
+    // Armazena todos os áudios criados
+    const audios = {};
+    let nextId = 1;
+    let showControls = false; // Controle para mostrar/ocultar controles visuais
+
+    /**
+     * Cria e reproduz um áudio
+     * @param {number} id - ID do áudio
+     * @param {string} url - URL do arquivo de áudio
+     * @param {number} volume - Volume (0.0 - 1.0)
+     * @param {boolean} loop - Se deve repetir
+     * @param {boolean} autoplay - Se deve tocar automaticamente
+     * @param {number} fadeIn - Tempo de fade in (ms)
+     * @param {number} fadeOut - Tempo de fade out (ms)
+     * @returns {number} ID do áudio criado
+     */
+    function playAudio(id, url, volume, loop, autoplay, fadeIn, fadeOut) {
+      // Valores padrão
+      const audioUrl = url || "";
+      const audioVolume = volume ?? 1.0;
+      const isLoop = loop ?? false;
+      const autoPlay = autoplay ?? true;
+      const fadeInTime = fadeIn ?? 0;
+      const fadeOutTime = fadeOut ?? 0;
+
+      // Remove áudio existente se houver
+      if (audios[id]) {
+        removeAudio(id);
+      }
+
+      // Cria o elemento de áudio
+      const audioContainer = document.createElement('div');
+      audioContainer.className = 'audio-container audio-enter';
+      audioContainer.id = `audio_${id}`;
+
+      const audio = document.createElement('audio');
+      audio.className = 'audio-element';
+      audio.src = audioUrl;
+      audio.volume = audioVolume;
+      audio.loop = isLoop;
+      audio.preload = 'auto';
+
+      // Event listeners
+      audio.addEventListener('loadstart', () => {
+        console.log(`[MiauAPI] Áudio #${id} carregando...`);
+      });
+
+      audio.addEventListener('canplay', () => {
+        console.log(`[MiauAPI] Áudio #${id} pronto para tocar`);
+        if (autoPlay) {
+          playAudioElement(id, fadeInTime);
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        console.log(`[MiauAPI] Áudio #${id} terminou`);
+        if (!isLoop) {
+          removeAudio(id);
+        }
+      });
+
+      audio.addEventListener('error', (e) => {
+        console.error(`[MiauAPI] Erro no áudio #${id}:`, e);
+      });
+
+      audioContainer.appendChild(audio);
+      document.body.appendChild(audioContainer);
+
+      // Armazena referência
+      audios[id] = {
+        element: audio,
+        container: audioContainer,
+        url: audioUrl,
+        volume: audioVolume,
+        loop: isLoop,
+        playing: false,
+        fadeIn: fadeInTime,
+        fadeOut: fadeOutTime
+      };
+
+      console.log(`[MiauAPI] Áudio #${id} criado - URL(${audioUrl}) Volume(${audioVolume}) Loop(${isLoop}) AutoPlay(${autoPlay})`);
+      
+      return id;
+    }
+
+    /**
+     * Reproduz um áudio com fade in
+     * @param {number} id - ID do áudio
+     * @param {number} fadeInTime - Tempo de fade in (ms)
+     */
+    function playAudioElement(id, fadeInTime) {
+      const audioData = audios[id];
+      if (!audioData) return;
+
+      const audio = audioData.element;
+      
+      if (fadeInTime > 0) {
+        audio.volume = 0;
+        audio.play();
+        
+        // Fade in
+        const fadeInInterval = setInterval(() => {
+          audio.volume = Math.min(audio.volume + (audioData.volume / (fadeInTime / 50)), audioData.volume);
+          if (audio.volume >= audioData.volume) {
+            audio.volume = audioData.volume;
+            clearInterval(fadeInInterval);
+          }
+        }, 50);
+      } else {
+        audio.volume = audioData.volume;
+        audio.play();
+      }
+
+      audioData.playing = true;
+      console.log(`[MiauAPI] Áudio #${id} tocando`);
+    }
+
+    /**
+     * Pausa um áudio
+     * @param {number} id - ID do áudio
+     */
+    function pauseAudio(id) {
+      const audioData = audios[id];
+      if (!audioData) {
+        console.error(`[MiauAPI] Áudio #${id} não encontrado!`);
+        return;
+      }
+
+      audioData.element.pause();
+      audioData.playing = false;
+      console.log(`[MiauAPI] Áudio #${id} pausado`);
+    }
+
+    /**
+     * Resume um áudio pausado
+     * @param {number} id - ID do áudio
+     */
+    function resumeAudio(id) {
+      const audioData = audios[id];
+      if (!audioData) {
+        console.error(`[MiauAPI] Áudio #${id} não encontrado!`);
+        return;
+      }
+
+      audioData.element.play();
+      audioData.playing = true;
+      console.log(`[MiauAPI] Áudio #${id} resumido`);
+    }
+
+    /**
+     * Para um áudio
+     * @param {number} id - ID do áudio
+     */
+    function stopAudio(id) {
+      const audioData = audios[id];
+      if (!audioData) {
+        console.error(`[MiauAPI] Áudio #${id} não encontrado!`);
+        return;
+      }
+
+      if (audioData.fadeOut > 0) {
+        // Fade out
+        const fadeOutInterval = setInterval(() => {
+          audioData.element.volume = Math.max(audioData.element.volume - (audioData.volume / (audioData.fadeOut / 50)), 0);
+          if (audioData.element.volume <= 0) {
+            audioData.element.pause();
+            audioData.element.currentTime = 0;
+            clearInterval(fadeOutInterval);
+          }
+        }, 50);
+      } else {
+        audioData.element.pause();
+        audioData.element.currentTime = 0;
+      }
+
+      audioData.playing = false;
+      console.log(`[MiauAPI] Áudio #${id} parado`);
+    }
+
+    /**
+     * Define o volume de um áudio
+     * @param {number} id - ID do áudio
+     * @param {number} volume - Volume (0.0 - 1.0)
+     */
+    function setVolume(id, volume) {
+      const audioData = audios[id];
+      if (!audioData) {
+        console.error(`[MiauAPI] Áudio #${id} não encontrado!`);
+        return;
+      }
+
+      const newVolume = Math.max(0.0, Math.min(1.0, volume));
+      audioData.element.volume = newVolume;
+      audioData.volume = newVolume;
+      console.log(`[MiauAPI] Volume do áudio #${id} alterado para ${newVolume}`);
+    }
+
+    /**
+     * Para todos os áudios
+     */
+    function stopAll() {
+      Object.keys(audios).forEach(id => {
+        stopAudio(parseInt(id));
+      });
+      console.log('[MiauAPI] Todos os áudios parados');
+    }
+
+    /**
+     * Remove um áudio da tela
+     * @param {number} id - ID do áudio
+     */
+    function removeAudio(id) {
+      const audioData = audios[id];
+      if (!audioData) {
+        console.error(`[MiauAPI] Áudio #${id} não encontrado!`);
+        return;
+      }
+
+      audioData.container.classList.add('audio-exit');
+      setTimeout(() => {
+        if (audioData.container.parentNode) {
+          audioData.container.parentNode.removeChild(audioData.container);
+        }
+        delete audios[id];
+        console.log(`[MiauAPI] Áudio #${id} removido`);
+      }, 300);
+    }
+
+    /**
+     * Remove todos os áudios da tela
+     */
+    function clearAll() {
+      Object.keys(audios).forEach(id => {
+        const audioData = audios[id];
+        audioData.container.classList.add('audio-exit');
+        setTimeout(() => {
+          if (audioData.container.parentNode) {
+            audioData.container.parentNode.removeChild(audioData.container);
+          }
+        }, 300);
+      });
+
+      setTimeout(() => {
+        Object.keys(audios).forEach(key => delete audios[key]);
+        console.log('[MiauAPI] Todos os áudios removidos');
+      }, 300);
+    }
+
+    /**
+     * Cria controles visuais (opcional)
+     */
+    function createControls() {
+      if (showControls) {
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'audio-controls';
+        controlsDiv.id = 'audio-controls';
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'audio-info';
+        infoDiv.innerHTML = `Áudios ativos: <span id="audio-count">0</span>`;
+        
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'audio-control-buttons';
+        
+        const stopAllBtn = document.createElement('button');
+        stopAllBtn.className = 'control-btn';
+        stopAllBtn.textContent = 'Parar Todos';
+        stopAllBtn.onclick = stopAll;
+        
+        const clearAllBtn = document.createElement('button');
+        clearAllBtn.className = 'control-btn';
+        clearAllBtn.textContent = 'Limpar Todos';
+        clearAllBtn.onclick = clearAll;
+        
+        buttonsDiv.appendChild(stopAllBtn);
+        buttonsDiv.appendChild(clearAllBtn);
+        
+        controlsDiv.appendChild(infoDiv);
+        controlsDiv.appendChild(buttonsDiv);
+        document.body.appendChild(controlsDiv);
+        
+        // Atualiza contador
+        updateAudioCount();
+      }
+    }
+
+    /**
+     * Atualiza contador de áudios
+     */
+    function updateAudioCount() {
+      const countElement = document.getElementById('audio-count');
+      if (countElement) {
+        countElement.textContent = Object.keys(audios).length;
+      }
+    }
+
+    // API Global
+    window.MiauAPI = {
+      Audio: {
+        Play: playAudio,
+        Pause: pauseAudio,
+        Resume: resumeAudio,
+        Stop: stopAudio,
+        SetVolume: setVolume,
+        StopAll: stopAll,
+        Remove: removeAudio,
+        ClearAll: clearAll
+      }
+    };
+
+    // Listener para mensagens do NUI
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      
+      if (data?.action === 'playAudio') {
+        playAudio(data.id, data.url, data.volume, data.loop, data.autoplay, data.fadeIn, data.fadeOut);
+        updateAudioCount();
+      } else if (data?.action === 'pauseAudio') {
+        pauseAudio(data.id);
+      } else if (data?.action === 'resumeAudio') {
+        resumeAudio(data.id);
+      } else if (data?.action === 'stopAudio') {
+        stopAudio(data.id);
+        updateAudioCount();
+      } else if (data?.action === 'setVolume') {
+        setVolume(data.id, data.volume);
+      } else if (data?.action === 'stopAll') {
+        stopAll();
+        updateAudioCount();
+      } else if (data?.action === 'removeAudio') {
+        removeAudio(data.id);
+        updateAudioCount();
+      } else if (data?.action === 'clearAll') {
+        clearAll();
+        updateAudioCount();
+      }
+    });
+
+    // Cria controles visuais se habilitado
+    createControls();
+
+    console.log('[MiauAPI] Audio System pronto! ✓');
+  </script>
+</body>
+</html>
