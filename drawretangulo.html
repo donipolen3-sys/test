@@ -3,27 +3,25 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MiauAPI Rectangle System</title>
+  <title>MiauAPI – Rectangle System</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
       background: transparent;
-      font-family: 'Inter', sans-serif;
     }
-    body {
-      width: 1920px;
-      height: 1080px;
-      position: relative;
-    }
+    body { width: 1920px; height: 1080px; }
 
+    /* ==========================================
+       MÓDULO: RECTANGLE
+       ========================================== */
     .rectangle {
       position: absolute;
       border-radius: 8px;
       transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
 
+    /* Animações */
     @keyframes fadeIn {
       from { opacity: 0; transform: scale(0.95); }
       to   { opacity: 1; transform: scale(1); }
@@ -32,57 +30,230 @@
       from { opacity: 1; transform: scale(1); }
       to   { opacity: 0; transform: scale(0.95); }
     }
-
-    .rectangle-enter { animation: fadeIn 0.25s ease-out forwards; }
-    .rectangle-exit  { animation: fadeOut 0.25s ease-in forwards; }
+    .rectangle-enter { animation: fadeIn 0.3s ease-out forwards; }
+    .rectangle-exit  { animation: fadeOut 0.3s ease-in forwards; }
   </style>
 </head>
 <body>
   <script>
-    console.log('[MiauAPI] Rectangle System iniciado.');
+    console.log('[MiauAPI] Rectangle System iniciando...');
 
+    // Armazena todos os retângulos criados
     const rectangles = {};
     let nextId = 1;
 
-    function createRectangle(x, y, w, h, r, g, b, a) {
-      const id = nextId++;
+    /**
+     * Cria um retângulo na tela
+     * @param {number} id - ID do retângulo (opcional, será gerado se não fornecido)
+     * @param {number} x - Posição X (0-1920)
+     * @param {number} y - Posição Y (0-1080)
+     * @param {number} width - Largura em pixels
+     * @param {number} height - Altura em pixels
+     * @param {number} r - Vermelho (0-255)
+     * @param {number} g - Verde (0-255)
+     * @param {number} b - Azul (0-255)
+     * @param {number} a - Opacidade (0-255)
+     * @param {number} rounding - Arredondamento das bordas (0-50)
+     * @param {number} order - Ordem de renderização (z-index)
+     * @param {boolean} filled - Se deve ser preenchido (true) ou apenas borda (false)
+     * @param {number} border_size - Espessura da borda em pixels
+     * @returns {number} ID do retângulo criado
+     */
+    function createRectangle(id, x, y, width, height, r, g, b, a, rounding, order, filled, border_size) {
+      // Se ID não foi fornecido, gera um novo
+      if (id === undefined || id === null) {
+        id = nextId++;
+      }
+      
+      // Valores padrão
+      const posX = x ?? 530;
+      const posY = y ?? 210;
+      const rectWidth = width ?? 860;
+      const rectHeight = height ?? 660;
+      const red = r ?? 41;
+      const green = g ?? 128;
+      const blue = b ?? 185;
+      const alpha = a ?? 200;
+      const borderRadius = rounding ?? 8;
+      const zIndex = order ?? 1;
+      const isFilled = filled ?? true;
+      const borderWidth = border_size ?? 2;
+
+      // Cria o elemento
       const rect = document.createElement('div');
       rect.className = 'rectangle rectangle-enter';
       rect.id = `rect_${id}`;
-      rect.style.left = `${x}px`;
-      rect.style.top = `${y}px`;
-      rect.style.width = `${w}px`;
-      rect.style.height = `${h}px`;
-      rect.style.backgroundColor = `rgba(${r},${g},${b},${a / 255})`;
+      rect.style.left = `${posX}px`;
+      rect.style.top = `${posY}px`;
+      rect.style.width = `${rectWidth}px`;
+      rect.style.height = `${rectHeight}px`;
+      rect.style.borderRadius = `${borderRadius}px`;
+      rect.style.zIndex = zIndex;
+      
+      // Configura preenchimento ou borda
+      if (isFilled) {
+        rect.style.backgroundColor = `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
+        rect.style.border = 'none';
+      } else {
+        rect.style.backgroundColor = 'transparent';
+        rect.style.border = `${borderWidth}px solid rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
+      }
 
       document.body.appendChild(rect);
       rectangles[id] = rect;
 
-      console.log(`[MiauAPI] Retângulo #${id} criado.`);
+      console.log(`[MiauAPI] Retângulo #${id} criado - Pos(${posX},${posY}) Tam(${rectWidth}x${rectHeight}) Cor(${red},${green},${blue},${alpha}) Round(${borderRadius}) Order(${zIndex}) Filled(${isFilled}) Border(${borderWidth})`);
+      
       return id;
     }
 
-    function removeRectangle(id) {
+    /**
+     * Atualiza um retângulo existente
+     * @param {number} id - ID do retângulo
+     * @param {number} x - Nova posição X (opcional)
+     * @param {number} y - Nova posição Y (opcional)
+     * @param {number} width - Nova largura (opcional)
+     * @param {number} height - Nova altura (opcional)
+     * @param {number} r - Novo vermelho (opcional)
+     * @param {number} g - Novo verde (opcional)
+     * @param {number} b - Novo azul (opcional)
+     * @param {number} a - Nova opacidade (opcional)
+     * @param {number} rounding - Novo arredondamento (opcional)
+     * @param {number} order - Nova ordem (opcional)
+     * @param {boolean} filled - Novo preenchimento (opcional)
+     * @param {number} border_size - Nova espessura da borda (opcional)
+     */
+    function updateRectangle(id, x, y, width, height, r, g, b, a, rounding, order, filled, border_size) {
       const rect = rectangles[id];
-      if (!rect) return;
-      rect.classList.add('rectangle-exit');
-      setTimeout(() => rect.remove(), 250);
-      delete rectangles[id];
+      if (!rect) {
+        console.error(`[MiauAPI] Retângulo #${id} não encontrado!`);
+        return;
+      }
+
+      // Atualiza posição e tamanho
+      if (x !== undefined && x !== null) rect.style.left = `${x}px`;
+      if (y !== undefined && y !== null) rect.style.top = `${y}px`;
+      if (width !== undefined && width !== null) rect.style.width = `${width}px`;
+      if (height !== undefined && height !== null) rect.style.height = `${height}px`;
+
+      // Atualiza arredondamento
+      if (rounding !== undefined && rounding !== null) {
+        rect.style.borderRadius = `${rounding}px`;
+      }
+
+      // Atualiza ordem (z-index)
+      if (order !== undefined && order !== null) {
+        rect.style.zIndex = order;
+      }
+
+      // Atualiza cor se pelo menos um valor RGB/A foi fornecido
+      if (r !== undefined || g !== undefined || b !== undefined || a !== undefined) {
+        const currentColor = rect.style.backgroundColor;
+        const match = currentColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        
+        const currentR = match ? parseInt(match[1]) : 41;
+        const currentG = match ? parseInt(match[2]) : 128;
+        const currentB = match ? parseInt(match[3]) : 185;
+        const currentA = match && match[4] ? parseFloat(match[4]) * 255 : 200;
+
+        const newR = r !== undefined && r !== null ? r : currentR;
+        const newG = g !== undefined && g !== null ? g : currentG;
+        const newB = b !== undefined && b !== null ? b : currentB;
+        const newA = a !== undefined && a !== null ? a : currentA;
+
+        const colorString = `rgba(${newR}, ${newG}, ${newB}, ${newA / 255})`;
+        
+        // Atualiza preenchimento/borda se necessário
+        if (filled !== undefined && filled !== null) {
+          if (filled) {
+            rect.style.backgroundColor = colorString;
+            rect.style.border = 'none';
+          } else {
+            rect.style.backgroundColor = 'transparent';
+            const borderWidth = border_size ?? 2;
+            rect.style.border = `${borderWidth}px solid ${colorString}`;
+          }
+        } else {
+          // Mantém o estilo atual mas atualiza a cor
+          if (rect.style.border !== 'none') {
+            const borderWidth = rect.style.borderWidth || '2px';
+            rect.style.border = `${borderWidth} solid ${colorString}`;
+          } else {
+            rect.style.backgroundColor = colorString;
+          }
+        }
+      }
+
+      // Atualiza espessura da borda se fornecida
+      if (border_size !== undefined && border_size !== null && !filled) {
+        const currentColor = rect.style.borderColor || `rgba(${r ?? 41}, ${g ?? 128}, ${b ?? 185}, ${(a ?? 200) / 255})`;
+        rect.style.border = `${border_size}px solid ${currentColor}`;
+      }
+
+      console.log(`[MiauAPI] Retângulo #${id} atualizado`);
     }
 
-    window.addEventListener('message', (e) => {
-      const d = e.data;
-      if (!d || !d.action) return;
+    /**
+     * Remove um retângulo da tela
+     * @param {number} id - ID do retângulo
+     */
+    function removeRectangle(id) {
+      const rect = rectangles[id];
+      if (!rect) {
+        console.error(`[MiauAPI] Retângulo #${id} não encontrado!`);
+        return;
+      }
 
-      switch (d.action) {
-        case 'createRectangle':
-          createRectangle(d.x, d.y, d.w, d.h, d.r, d.g, d.b, d.a);
-          break;
-        case 'removeRectangle':
-          removeRectangle(d.id);
-          break;
+      rect.classList.add('rectangle-exit');
+      setTimeout(() => {
+        if (rect.parentNode) rect.parentNode.removeChild(rect);
+        delete rectangles[id];
+        console.log(`[MiauAPI] Retângulo #${id} removido`);
+      }, 300);
+    }
+
+    /**
+     * Remove todos os retângulos da tela
+     */
+    function clearAll() {
+      Object.keys(rectangles).forEach(id => {
+        const rect = rectangles[id];
+        rect.classList.add('rectangle-exit');
+        setTimeout(() => {
+          if (rect.parentNode) rect.parentNode.removeChild(rect);
+        }, 300);
+      });
+
+      setTimeout(() => {
+        Object.keys(rectangles).forEach(key => delete rectangles[key]);
+        console.log('[MiauAPI] Todos os retângulos removidos');
+      }, 300);
+    }
+
+    // API Global
+    window.MiauAPI = {
+      Rectangle: createRectangle,
+      UpdateRectangle: updateRectangle,
+      RemoveRectangle: removeRectangle,
+      ClearAll: clearAll
+    };
+
+    // Listener para mensagens do NUI
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      
+      if (data?.action === 'createRectangle') {
+        createRectangle(data.id, data.x, data.y, data.width, data.height, data.r, data.g, data.b, data.a, data.rounding, data.order, data.filled, data.border_size);
+      } else if (data?.action === 'updateRectangle') {
+        updateRectangle(data.id, data.x, data.y, data.width, data.height, data.r, data.g, data.b, data.a, data.rounding, data.order, data.filled, data.border_size);
+      } else if (data?.action === 'removeRectangle') {
+        removeRectangle(data.id);
+      } else if (data?.action === 'clearAll') {
+        clearAll();
       }
     });
+
+    console.log('[MiauAPI] Rectangle System pronto! ✓');
   </script>
 </body>
 </html>
